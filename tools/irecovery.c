@@ -36,6 +36,7 @@
 #define debug(...) if(verbose) fprintf(stderr, __VA_ARGS__)
 
 enum {
+	kGetEnv,
 	kResetDevice,
 	kStartShell,
 	kSendCommand,
@@ -333,6 +334,7 @@ static void print_usage(int argc, char **argv) {
 	printf("  -r\t\treset client\n");
 	printf("  -n\t\treboot device into normal mode (exit recovery loop)\n");
 	printf("  -e FILE\texecutes recovery script from FILE\n");
+	printf("  -g VAR\tgrab nvram variable (getenv)\n");
 	printf("  -s\t\tstart an interactive shell\n");
 	printf("  -v\t\tenable verbose output, repeat for higher verbosity\n");
 	printf("  -h\t\tprints this usage information\n");
@@ -348,6 +350,8 @@ int main(int argc, char* argv[]) {
 	char* argument = NULL;
 	irecv_error_t error = 0;
 
+	char* value = NULL;
+
 	char* buffer = NULL;
 	uint64_t buffer_length = 0;
 
@@ -356,7 +360,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	while ((opt = getopt(argc, argv, "i:vhrsmnc:f:e:k::")) > 0) {
+	while ((opt = getopt(argc, argv, "i:vhrsmnc:f:e:g:k::")) > 0) {
 		switch (opt) {
 			case 'i':
 				if (optarg) {
@@ -413,6 +417,11 @@ int main(int argc, char* argv[]) {
 
 			case 'e':
 				action = kSendScript;
+				argument = optarg;
+				break;
+
+			case 'g':
+				action = kGetEnv;
 				argument = optarg;
 				break;
 
@@ -492,6 +501,16 @@ int main(int argc, char* argv[]) {
 			} else {
 				fprintf(stderr, "Could not read file '%s'\n", argument);
 			}
+			break;
+
+		case kGetEnv:
+			error = irecv_getenv(client, argument, &value);
+			if(error != IRECV_E_SUCCESS) {
+				debug("%s\n", irecv_strerror(error));
+				break;
+			}
+			printf("%s:%s\n", argument, value);
+			free(value);
 			break;
 
 		case kShowMode:
