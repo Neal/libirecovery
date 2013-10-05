@@ -43,6 +43,7 @@ enum {
 	kSendExploit,
 	kSendScript,
 	kShowMode,
+	kShowDeviceInfo,
 	kRebootToNormalMode
 };
 
@@ -111,6 +112,43 @@ static void buffer_read_from_filename(const char *filename, char **buffer, uint6
 	*length = size;
 }
 
+static void print_device_info(irecv_client_t client) {
+	int ret, mode;
+	unsigned int cpid, bdid;
+	unsigned long long ecid;
+	char srnm[12], imei[15];
+
+	ret = irecv_get_cpid(client, &cpid);
+	if(ret == IRECV_E_SUCCESS) {
+		printf("CPID: %d\n", cpid);
+	}
+
+	ret = irecv_get_bdid(client, &bdid);
+	if(ret == IRECV_E_SUCCESS) {
+		printf("BDID: %d\n", bdid);
+	}
+
+	ret = irecv_get_ecid(client, &ecid);
+	if(ret == IRECV_E_SUCCESS) {
+		printf("ECID: %lld\n", ecid);
+	}
+
+	ret = irecv_get_srnm(client, srnm);
+	if(ret == IRECV_E_SUCCESS) {
+		printf("SRNM: %s\n", srnm);
+	}
+
+	ret = irecv_get_imei(client, imei);
+	if(ret == IRECV_E_SUCCESS) {
+		printf("IMEI: %s\n", imei);
+	}
+
+	ret = irecv_get_mode(client, &mode);
+	if (ret == IRECV_E_SUCCESS) {
+		printf("MODE: %s\n", mode_to_str(mode));
+	}
+}
+
 static void parse_command(irecv_client_t client, unsigned char* command, unsigned int size) {
 	char* cmd = strdup((char*)command);
 	char* action = strtok(cmd, " ");
@@ -126,41 +164,7 @@ static void parse_command(irecv_client_t client, unsigned char* command, unsigne
 			irecv_send_file(client, filename, 0);
 		}
 	} else if (!strcmp(cmd, "/deviceinfo")) {
-		int ret, mode;
-		unsigned int cpid, bdid;
-		unsigned long long ecid;
-		char srnm[12], imei[15];
-
-		ret = irecv_get_cpid(client, &cpid);
-		if(ret == IRECV_E_SUCCESS) {
-			printf("CPID: %d\n", cpid);
-		}
-
-		ret = irecv_get_bdid(client, &bdid);
-		if(ret == IRECV_E_SUCCESS) {
-			printf("BDID: %d\n", bdid);
-		}
-
-		ret = irecv_get_ecid(client, &ecid);
-		if(ret == IRECV_E_SUCCESS) {
-			printf("ECID: %lld\n", ecid);
-		}
-
-		ret = irecv_get_srnm(client, srnm);
-		if(ret == IRECV_E_SUCCESS) {
-			printf("SRNM: %s\n", srnm);
-		}
-
-		ret = irecv_get_imei(client, imei);
-		if(ret == IRECV_E_SUCCESS) {
-			printf("IMEI: %s\n", imei);
-		}
-
-		ret = irecv_get_mode(client, &mode);
-		if (ret == IRECV_E_SUCCESS) {
-			printf("MODE: %s\n", mode_to_str(mode));
-		}
-
+		print_device_info(client);
 	} else if (!strcmp(cmd, "/limera1n")) {
 		char* filename = strtok(NULL, " ");
 		debug("Sending limera1n payload %s\n", filename);
@@ -328,6 +332,7 @@ static void print_usage(int argc, char **argv) {
 	printf("  -i ECID\tconnect to specific device by its hexadecimal ECID\n");
 	printf("  -c CMD\trun CMD on device\n");
 	printf("  -m\t\tprint current device mode\n");
+	printf("  -I\t\tprint device info\n");
 	printf("  -f FILE\tsend file to device\n");
 	printf("  -k FILE\tsend limera1n usb exploit payload from FILE\n");
 	printf("  -r\t\treset client\n");
@@ -356,7 +361,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	while ((opt = getopt(argc, argv, "i:vhrsmnc:f:e:k::")) > 0) {
+	while ((opt = getopt(argc, argv, "i:vhrsmInc:f:e:k::")) > 0) {
 		switch (opt) {
 			case 'i':
 				if (optarg) {
@@ -382,6 +387,10 @@ int main(int argc, char* argv[]) {
 
 			case 'm':
 				action = kShowMode;
+				break;
+
+			case 'I':
+				action = kShowDeviceInfo;
 				break;
 
 			case 'n':
@@ -497,6 +506,10 @@ int main(int argc, char* argv[]) {
 		case kShowMode:
 			irecv_get_mode(client, &mode);
 			printf("%s Mode\n", mode_to_str(mode));
+			break;
+
+		case kShowDeviceInfo:
+			print_device_info(client);
 			break;
 
 		case kRebootToNormalMode:
