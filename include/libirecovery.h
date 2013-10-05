@@ -26,6 +26,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#include "limera1n.h"
+
 enum {
 	IRECV_K_RECOVERY_MODE_1   = 0x1280,
 	IRECV_K_RECOVERY_MODE_2   = 0x1281,
@@ -136,6 +138,9 @@ irecv_device_t irecv_devices_get_all();
 irecv_error_t irecv_devices_get_device_by_client(irecv_client_t client, irecv_device_t* device);
 irecv_error_t irecv_devices_get_device_by_product_type(const char* product_type, irecv_device_t* device);
 irecv_error_t irecv_devices_get_device_by_hardware_model(const char* hardware_model, irecv_device_t* device);
+
+/* usb exploits */
+irecv_error_t irecv_exploit_with_limera1n(irecv_client_t client, irecv_device_t device);
 
 #ifdef __cplusplus
 }

@@ -41,6 +41,7 @@ enum {
 	kSendCommand,
 	kSendFile,
 	kSendExploit,
+	kSendLimera1n,
 	kSendScript,
 	kShowMode,
 	kRebootToNormalMode
@@ -356,7 +357,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	while ((opt = getopt(argc, argv, "i:vhrsmnc:f:e:k::")) > 0) {
+	while ((opt = getopt(argc, argv, "i:vhrslmnc:f:e:k::")) > 0) {
 		switch (opt) {
 			case 'i':
 				if (optarg) {
@@ -394,6 +395,10 @@ int main(int argc, char* argv[]) {
 
 			case 's':
 				action = kStartShell;
+				break;
+
+			case 'l':
+				action = kSendLimera1n;
 				break;
 
 			case 'f':
@@ -472,6 +477,25 @@ int main(int argc, char* argv[]) {
 			}
 			error = irecv_trigger_limera1n_exploit(client);
 			debug("%s\n", irecv_strerror(error));
+			break;
+
+		case kSendLimera1n:
+			irecv_get_mode(client, &mode);
+			if (mode != IRECV_K_DFU_MODE) {
+				debug("Expected device to be in DFU mode.\n");
+				break;
+			}
+			if (!(device->chip_id != 8930 || device->chip_id != 8922 || device->chip_id != 8920)) {
+				debug("Device is not exploitable with limera1n.\n");
+				break;
+			}
+			debug("Exploiting with limera1n...\n");
+			error = irecv_exploit_with_limera1n(client, device);
+			if (error != IRECV_E_SUCCESS) {
+				debug("Failed to exploit with limera1n.\n");
+				break;
+			}
+			debug("Successfully exploited with limera1n!\n");
 			break;
 
 		case kStartShell:
